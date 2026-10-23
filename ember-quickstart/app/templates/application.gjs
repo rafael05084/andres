@@ -1,12 +1,7 @@
 import { pageTitle } from 'ember-page-title';
 import { WelcomePage } from 'ember-welcome-page';
+import ChatHeader from '../components/ChatHeader.gjs';
 
 <template>
-  {{pageTitle "EmberQuickstart"}}
-
-  {{outlet}}
-
-  {{! The following component displays Ember's default welcome message. }}
-  <WelcomePage @extension="gjs" />
-  {{! Feel free to remove this! }}
+  <ChatHeader></ChatHeader>
 </template>
