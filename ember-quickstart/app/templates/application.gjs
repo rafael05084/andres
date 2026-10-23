@@ -4,4 +4,5 @@ import ChatHeader from '../components/ChatHeader.gjs';
 
 <template>
   <ChatHeader></ChatHeader>
+
 </template>
