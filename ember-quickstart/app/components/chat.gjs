@@ -2,7 +2,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { on } from '@ember/modifier';
-import Titulo from './titulo';
+import Titulo from './ChatHeader';
 
 export default class ChatComponent extends Component {
   @tracked entrada = '';
