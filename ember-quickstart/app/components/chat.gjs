@@ -1,8 +1,8 @@
-
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { on } from '@ember/modifier';
-import Titulo from './ChatHeader';
+import ChatHeader from './ChatHeader.gjs';
+import MessageContainer from './MessageContainer.gjs';
+import ChatInput from './ChatInput.gjs';
 
 export default class ChatComponent extends Component {
   @tracked entrada = '';
@@ -170,10 +170,10 @@ Força: ${forca2}
       this.adicionarMensagem(
         `Comandos disponíveis:
 
-• Digite o nome de um Pokémon: pikachu
-• Compare: charizard vs blastoise
-• Pergunte: quem ganha mewtwo ou mew?
-• Experimente: pikachu do ash vs arceus`
+- Digite o nome de um Pokémon: pikachu
+- Compare: charizard vs blastoise
+- Pergunte: quem ganha mewtwo ou mew?
+- Experimente: pikachu do ash vs arceus`
       );
       return;
     }
@@ -219,43 +219,19 @@ Força: ${forca2}
 
   <template>
     <div class="chat-container">
+      <ChatHeader />
 
-      <Titulo />
+      <MessageContainer 
+        @mensagens={{this.mensagens}} 
+        @carregando={{this.carregando}} 
+      />
 
-      <div class="chat-mensagens" aria-live="polite">
-        {{#each this.mensagens as |mensagem|}}
-          <div class="mensagem {{mensagem.tipo}}">
-            <div>{{mensagem.texto}}</div>
-
-            {{#if mensagem.imagem}}
-              <img
-                src={{mensagem.imagem}}
-                alt="Imagem do Pokémon"
-                class="pokemon-img"
-              />
-            {{/if}}
-          </div>
-        {{/each}}
-
-        {{#if this.carregando}}
-          <div class="mensagem bot">
-            Buscando Pokémon...
-          </div>
-        {{/if}}
-      </div>
-
-      <form {{on "submit" this.enviarMensagem}}>
-        <input
-          type="text"
-          placeholder="Digite um Pokémon..."
-          value={{this.entrada}}
-          {{on "input" this.atualizarEntrada}}
-        />
-
-        <button type="submit" disabled={{this.carregando}}>
-          {{if this.carregando "Aguarde..." "Enviar"}}
-        </button>
-      </form>
+      <ChatInput 
+        @entrada={{this.entrada}} 
+        @carregando={{this.carregando}} 
+        @onInput={{this.atualizarEntrada}} 
+        @onSubmit={{this.enviarMensagem}} 
+      />
     </div>
   </template>
 }

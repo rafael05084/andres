@@ -1,6 +1,5 @@
-
-import ChatHeader from '../components/ChatHeader';
+import Chat from '../components/chat.gjs';
 
 <template>
-  <ChatHeader />
+  <Chat />
 </template>
