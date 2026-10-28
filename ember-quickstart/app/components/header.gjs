@@ -8,3 +8,5 @@ export default class HeaderComponent extends Component {
 		</header>
 	</template>
 }
+
+

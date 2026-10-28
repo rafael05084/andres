@@ -1,152 +1,69 @@
+
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action } from '@ember/object';
 import { on } from '@ember/modifier';
+import Titulo from './titulo';
 
-export default class PokemonChat extends Component {
+export default class ChatComponent extends Component {
+  @tracked entrada = '';
   @tracked mensagens = [];
-  @tracked textoEntrada = '';
+  @tracked carregando = false;
 
-  @action
-  atualizarEntrada(event) {
-    this.textoEntrada = event.target.value;
-  }
+  atualizarEntrada = (event) => {
+    this.entrada = event.target.value;
+  };
 
-  @action
-  tratarKeyDown(event) {
-    if (event.key === 'Enter') {
-      this.enviarMensagem();
-    }
-  }
-
-  @action
-  async enviarMensagem() {
-    const mensagem = this.textoEntrada.trim();
-
-    if (mensagem === '') {
-      return;
-    }
-
-    this.adicionarMensagem(mensagem, 'usuario');
-    this.textoEntrada = '';
-
-    await this.processarMensagem(mensagem);
-  }
-
-  adicionarMensagem(texto, tipo, imagem = null) {
+  adicionarMensagem(texto, tipo = 'bot', imagem = null) {
     this.mensagens = [
       ...this.mensagens,
-      { id: Date.now() + Math.random(), texto, tipo, imagem }
+      {
+        id: this.mensagens.length + 1,
+        texto,
+        tipo,
+        imagem
+      }
     ];
   }
 
-  async processarMensagem(mensagem) {
-    const texto = mensagem.toLowerCase().trim();
+  async obterPokemon(nome) {
+    const resposta = await fetch(
+      `https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nome)}`
+    );
 
-    if (texto === 'oi' || texto === 'olá' || texto === 'ola') {
-      this.adicionarMensagem('Olá! Qual Pokémon você quer conhecer?', 'bot');
-      return;
+    if (!resposta.ok) {
+      throw new Error('Pokémon não encontrado');
     }
 
-    if (texto === 'obrigado' || texto === 'obrigada' || texto === 'valeu') {
-      this.adicionarMensagem('Por nada!', 'bot');
-      return;
-    }
-
-    if (texto === 'ajuda' || texto === 'comandos' || texto === 'como funciona') {
-      this.adicionarMensagem(
-        "Opções disponíveis:\n" +
-        "1. Nome do Pokémon (ex: pikachu)\n" +
-        "2. Comparação (ex: charizard vs blastoise)\n" +
-        "3. Quem ganha (ex: quem ganha mewtwo ou mew?)",
-        'bot'
-      );
-      return;
-    }
-
-    if (texto.includes(' vs ')) {
-      const nomes = texto.split(' vs ');
-      await this.compararPokemon(nomes[0].trim(), nomes[1].trim());
-      return;
-    }
-
-    if (texto.includes('quem ganha') && texto.includes(' ou ')) {
-      let pergunta = texto.replace('quem ganha', '').replace('?', '');
-      const nomes = pergunta.split(' ou ');
-      await this.compararPokemon(nomes[0].trim(), nomes[1].trim());
-      return;
-    }
-
-    await this.buscarPokemon(texto);
+    return await resposta.json();
   }
 
   async buscarPokemon(nome) {
     try {
-      const resposta = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nome)}`);
+      const pokemon = await this.obterPokemon(nome);
 
-      if (!resposta.ok) {
-        this.adicionarMensagem('Não encontrei esse Pokémon.', 'bot');
-        return;
-      }
+      const tipos = pokemon.types
+        .map(item => item.type.name)
+        .join(' / ');
 
-      const pokemon = await resposta.json();
-      const altura = pokemon.height / 10;
-      const peso = pokemon.weight / 10;
-      const tipos = pokemon.types.map(item => item.type.name).join(' / ');
-      const imagem = pokemon.sprites.other['official-artwork'].front_default;
+      const imagem =
+        pokemon.sprites.other['official-artwork'].front_default;
 
-      const texto = `Encontrei!\n\nNome: ${pokemon.name}\nAltura: ${altura} m\nPeso: ${peso} kg\nTipo: ${tipos}`;
+      const mensagem = `Encontrei!
 
-      this.adicionarMensagem(texto, 'bot', imagem);
+Nome: ${pokemon.name}
+Altura: ${pokemon.height / 10} m
+Peso: ${pokemon.weight / 10} kg
+Tipo: ${tipos}`;
+
+      this.adicionarMensagem(mensagem, 'bot', imagem);
+
     } catch (erro) {
-      this.adicionarMensagem('Não consegui acessar a PokéAPI.', 'bot');
-      console.error(erro);
-    }
-  }
+      this.adicionarMensagem(
+        erro.message === 'Pokémon não encontrado'
+          ? 'Não encontrei esse Pokémon.'
+          : 'Não consegui acessar a PokéAPI.'
+      );
 
-  async compararPokemon(nome1, nome2) {
-    const pikachuDoAsh = nome1.includes('pikachu do ash') || nome2.includes('pikachu do ash');
-    const nomeAPI1 = nome1.replace('pikachu do ash', 'pikachu');
-    const nomeAPI2 = nome2.replace('pikachu do ash', 'pikachu');
-
-    try {
-      const [res1, res2] = await Promise.all([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nomeAPI1)}`),
-        fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nomeAPI2)}`)
-      ]);
-
-      if (!res1.ok || !res2.ok) {
-        this.adicionarMensagem('Não consegui encontrar um dos Pokémon.', 'bot');
-        return;
-      }
-
-      const pokemon1 = await res1.json();
-      const pokemon2 = await res2.json();
-
-      if (pikachuDoAsh) {
-        this.adicionarMensagem(
-          "É O PIKACHU DO ASH!\n\nOs atributos não importam mais.\nO poder do protagonismo foi ativado!\n\nPIKACHU É O VENCEDOR!",
-          'bot'
-        );
-        return;
-      }
-
-      const forca1 = this.calcularForca(pokemon1);
-      const forca2 = this.calcularForca(pokemon2);
-
-      let resultado = `COMPARAÇÃO\n\n${pokemon1.name}\nForça: ${forca1}\n\n${pokemon2.name}\nForça: ${forca2}\n\n`;
-
-      if (forca1 > forca2) {
-        resultado += `Pela nossa regra, ${pokemon1.name} venceria!`;
-      } else if (forca2 > forca1) {
-        resultado += `Pela nossa regra, ${pokemon2.name} venceria!`;
-      } else {
-        resultado += "Pela nossa regra, temos um empate!";
-      }
-
-      this.adicionarMensagem(resultado, 'bot');
-    } catch (erro) {
-      this.adicionarMensagem('Ocorreu um erro durante a comparação.', 'bot');
       console.error(erro);
     }
   }
@@ -155,35 +72,190 @@ export default class PokemonChat extends Component {
     const hp = pokemon.stats[0].base_stat;
     const ataque = pokemon.stats[1].base_stat;
     const defesa = pokemon.stats[2].base_stat;
-    const velocidade = pokemon.stats[4].base_stat;
+    const velocidade = pokemon.stats[5].base_stat;
 
     return hp + ataque + defesa + velocidade;
   }
 
+  async compararPokemon(nome1, nome2) {
+    const ash1 = nome1 === 'pikachu do ash';
+    const ash2 = nome2 === 'pikachu do ash';
+
+    const api1 = ash1 ? 'pikachu' : nome1;
+    const api2 = ash2 ? 'pikachu' : nome2;
+
+    try {
+      const [pokemon1, pokemon2] = await Promise.all([
+        this.obterPokemon(api1),
+        this.obterPokemon(api2)
+      ]);
+
+      if (ash1 || ash2) {
+        this.adicionarMensagem(
+          `É O PIKACHU DO ASH! ⚡
+
+Os atributos não importam mais.
+O poder do protagonismo foi ativado!
+
+PIKACHU É O VENCEDOR!`
+        );
+        return;
+      }
+
+      const forca1 = this.calcularForca(pokemon1);
+      const forca2 = this.calcularForca(pokemon2);
+
+      let vencedor;
+
+      if (forca1 > forca2) {
+        vencedor = pokemon1.name;
+      } else if (forca2 > forca1) {
+        vencedor = pokemon2.name;
+      } else {
+        vencedor = 'Empate';
+      }
+
+      let resultado = `COMPARAÇÃO ⚔️
+
+${pokemon1.name}
+Força: ${forca1}
+
+${pokemon2.name}
+Força: ${forca2}
+
+`;
+
+      if (vencedor === 'Empate') {
+        resultado += 'Pela nossa regra, temos um empate!';
+      } else {
+        resultado += `Pela nossa regra, ${vencedor} venceria!`;
+      }
+
+      this.adicionarMensagem(resultado);
+
+    } catch (erro) {
+      this.adicionarMensagem(
+        'Não consegui encontrar um dos Pokémon ou ocorreu um erro.'
+      );
+
+      console.error(erro);
+    }
+  }
+
+  enviarMensagem = async (event) => {
+    event.preventDefault();
+
+    if (this.carregando) return;
+
+    const texto = this.entrada.toLowerCase().trim();
+
+    if (!texto) return;
+
+    this.entrada = '';
+    this.adicionarMensagem(texto, 'usuario');
+
+    if (['oi', 'olá', 'ola'].includes(texto)) {
+      this.adicionarMensagem(
+        'Olá! Qual Pokémon você quer conhecer?'
+      );
+      return;
+    }
+
+    if (['obrigado', 'obrigada', 'valeu'].includes(texto)) {
+      this.adicionarMensagem('Por nada!');
+      return;
+    }
+
+    if (['ajuda', 'comandos', 'como funciona'].includes(texto)) {
+      this.adicionarMensagem(
+        `Comandos disponíveis:
+
+• Digite o nome de um Pokémon: pikachu
+• Compare: charizard vs blastoise
+• Pergunte: quem ganha mewtwo ou mew?
+• Experimente: pikachu do ash vs arceus`
+      );
+      return;
+    }
+
+    let nomes = null;
+
+    if (texto.includes(' vs ')) {
+      nomes = texto.split(' vs ');
+    } else if (
+      texto.startsWith('quem ganha ') &&
+      texto.includes(' ou ')
+    ) {
+      nomes = texto
+        .replace(/^quem ganha\s+/, '')
+        .replace(/\?$/, '')
+        .split(' ou ');
+    }
+
+    this.carregando = true;
+
+    try {
+      if (nomes) {
+        if (
+          nomes.length !== 2 ||
+          nomes.some(nome => !nome.trim())
+        ) {
+          this.adicionarMensagem(
+            'Formato inválido. Exemplo: pikachu vs charizard'
+          );
+        } else {
+          await this.compararPokemon(
+            nomes[0].trim(),
+            nomes[1].trim()
+          );
+        }
+      } else {
+        await this.buscarPokemon(texto);
+      }
+    } finally {
+      this.carregando = false;
+    }
+  };
+
   <template>
     <div class="chat-container">
-      <div class="mensagens">
-        {{#each this.mensagens as |msg|}}
-          <div class="mensagem {{msg.tipo}}">
-            <p>{{msg.texto}}</p>
-            {{#if msg.imagem}}
-              <img src={{msg.imagem}} alt="Pokémon" class="pokemon-img" />
+
+      <Titulo />
+
+      <div class="chat-mensagens" aria-live="polite">
+        {{#each this.mensagens as |mensagem|}}
+          <div class="mensagem {{mensagem.tipo}}">
+            <div>{{mensagem.texto}}</div>
+
+            {{#if mensagem.imagem}}
+              <img
+                src={{mensagem.imagem}}
+                alt="Imagem do Pokémon"
+                class="pokemon-img"
+              />
             {{/if}}
           </div>
         {{/each}}
+
+        {{#if this.carregando}}
+          <div class="mensagem bot">
+            Buscando Pokémon...
+          </div>
+        {{/if}}
       </div>
 
-      <div class="input-area">
+      <form {{on "submit" this.enviarMensagem}}>
         <input
-          id="entrada"
           type="text"
-          value={{this.textoEntrada}}
-          placeholder="Digite o nome do Pokémon..."
+          placeholder="Digite um Pokémon..."
+          value={{this.entrada}}
           {{on "input" this.atualizarEntrada}}
-          {{on "keydown" this.tratarKeyDown}}
         />
-        <button type="button" {{on "click" this.enviarMensagem}}>Enviar</button>
-      </div>
+
+        <button type="submit" disabled={{this.carregando}}>
+          {{if this.carregando "Aguarde..." "Enviar"}}
+        </button>
+      </form>
     </div>
   </template>
 }
